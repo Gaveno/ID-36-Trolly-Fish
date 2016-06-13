@@ -1,7 +1,7 @@
 /*
   Trolly Fish: http://www.team-arg.org/fish-manual.html
 
-  Arduboy version 0.8:  http://www.team-arg.org/fish-downloads.html
+  Arduboy version 1.0:  http://www.team-arg.org/fish-downloads.html
 
   MADE by TEAM a.r.g. : http://www.team-arg.org/more-about.html
 
@@ -14,16 +14,13 @@
 //determine the game
 #define GAME_ID 36
 
-#include <SPI.h>
-#include <EEPROM.h>
 #include "Arglib.h"
+#include "bitmaps.h"
 #include "physics.h"
-#include "menu.h"
 #include "player.h"
 #include "enemies.h"
 #include "powerups.h"
 #include "stage.h"
-
 #include "inputs.h"
 
 //define menu states (on main menu)
@@ -44,10 +41,10 @@ SimpleButtons buttons (arduboy);
 Sprites sprites(arduboy);
 unsigned long scorePlayer;
 
-
 unsigned char gameState = STATE_MENU_MAIN;
 boolean soundYesNo;
 byte counter = 0;
+byte pu_current = 0;
 byte bubblesFrame = 0;
 boolean menuX = true;
 boolean menuY = false;
@@ -86,8 +83,6 @@ void loop() {
     case STATE_MENU_MAIN:
       // show the splash art
       arduboy.drawBitmap(0, 0, titleScreen, 128, 64, WHITE);
-      drawBubbles(false);
-
       for (byte k = 0; k < 2; k++)
       {
         for (byte j = 0; j < 2; j++)
@@ -95,7 +90,6 @@ void loop() {
           sprites.drawPlusMask(73 + (j * 26), 2 + (k * 12), titleMenu_plus_mask, j + (2 * k));
         }
       }
-
       sprites.drawPlusMask(73 + (menuX * 26), 2 + (menuY * 12), bubbles_plus_mask, bubblesFrame);
       if (buttons.justPressed(RIGHT_BUTTON) && (!menuX)) menuX = !menuX;
       if (buttons.justPressed(LEFT_BUTTON) && (menuX)) menuX = !menuX;
@@ -108,18 +102,16 @@ void loop() {
       if (buttons.justPressed(A_BUTTON | B_BUTTON)) gameState = STATE_MENU_MAIN;
       break;
     case STATE_MENU_INFO: // infoscreen
-      arduboy.drawBitmap(14 , 0 , trollyFishTitle, 100 , 16, WHITE);
-      arduboy.drawBitmap(26 , 22 , madeBy01, 75 , 8, WHITE);
-      arduboy.drawBitmap(51 , 30 , madeBy02, 30 , 8, WHITE);
-      arduboy.drawBitmap(30 , 42 , madeBy03, 79 , 8, WHITE);
-      arduboy.drawBitmap(51 , 50 , madeBy02, 30 , 8, WHITE);
+      arduboy.drawBitmap(14 , 8 , trollyFishTitle, 100 , 16, WHITE);
+      arduboy.drawBitmap(26 , 30 , madeBy01, 75 , 8, WHITE);
+      arduboy.drawBitmap(51 , 38 , madeBy02, 30 , 8, WHITE);
+      arduboy.drawBitmap(30 , 50 , madeBy03, 79 , 8, WHITE);
       drawWeed();
       drawBubbles(false);
       if (buttons.justPressed(A_BUTTON | B_BUTTON)) gameState = STATE_MENU_MAIN;
       break;
     case STATE_MENU_SOUNDFX: // soundconfig screen
       arduboy.drawBitmap(0, 0, titleScreen, 128, 64, WHITE);
-      drawBubbles(false);
       sprites.drawPlusMask(88  , 2 , soundMenu_plus_mask, 0);
       for (byte j = 0; j < 2; j++)
       {
@@ -130,7 +122,7 @@ void loop() {
       if (buttons.justPressed(LEFT_BUTTON)) soundYesNo = false;
       if (buttons.justPressed(A_BUTTON | B_BUTTON))
       {
-        arduboy.audio.save_on_off();
+        arduboy.audio.saveOnOff();
         gameState = STATE_MENU_MAIN;
       }
       if (soundYesNo == true) arduboy.audio.on();
@@ -138,7 +130,6 @@ void loop() {
       break;
     case STATE_MENU_PLAY:
       scorePlayer = 0;
-      //starFish.resetPos();
       pu_shocks = 0;
       pu_bubbles = 0;
       fr = 60;
@@ -146,6 +137,7 @@ void loop() {
       initStarFish(0);
       initBonuses();
       powerups = 0x00;   //No starting active powerups
+      pu_current = 0;
       pu_timers[PUT_STOP] = 0;        // Timer for PU_STOPFISH
       pu_timers[PUT_PROTECT] = 0;     // Timer for PU_PROTECTFISH
       pu_timers[PUT_SHOCK] = 0;       // Timer for PU_SHOCKFISH
@@ -184,14 +176,14 @@ void loop() {
       drawScore(86, 0, 0);
       drawWeed();
       drawBubbles(true);
-      drawPowerUps();
+      drawHUDPowerUps();
 
       if (checkGameOver())gameState = STATE_GAME_OVER;
       break;
     case STATE_GAME_OVER:
-      arduboy.drawBitmap(22, 8, gameOver, 84, 16, WHITE);
+      arduboy.drawBitmap(26, 8, gameOver, 84, 16, WHITE);
       drawWeed();
-      drawScore(36, 36, 1);
+      drawScore(32, 36, 1);
       if (buttons.justPressed(A_BUTTON | B_BUTTON))
       {
         gameState = STATE_MENU_MAIN;
